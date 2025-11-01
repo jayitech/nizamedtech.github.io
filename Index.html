@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Performance Monitor V2</title>
+    <style>
+        :root {
+            --primary-start: #667eea;
+            --primary-end: #764ba2;
+            --success-start: #28a745;
+            --success-end: #20c997;
+            --danger-start: #dc3545;
+            --danger-end: #fd7e14;
+            --info-start: #17a2b8;
+            --info-end: #007bff;
+            --light-bg: #f8f9ff;
+            --text-dark: #333;
+            --text-light: #666;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--primary-start) 0%, var(--primary-end) 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container { max-width: 1600px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
+        .header { background: linear-gradient(135deg, var(--primary-start) 0%, var(--primary-end) 100%); color: white; padding: 30px; text-align: center; }
+        .header h1 { font-size: 28px; margin-bottom: 5px; }
+        .header p { opacity: 0.9; font-size: 14px; }
+        .content { padding: 30px; }
+        .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card { background: linear-gradient(135deg, var(--primary-start) 0%, var(--primary-end) 100%); color: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .card.salary-card { background: linear-gradient(135deg, var(--success-start) 0%, var(--success-end) 100%); }
+        .card.penalty-card { background: linear-gradient(135deg, var(--danger-start) 0%, var(--danger-end) 100%); }
+        .card.invoice-card { background: linear-gradient(135deg, var(--info-start) 0%, var(--info-end) 100%); }
+        .card h3 { font-size: 14px; opacity: 0.9; margin-bottom: 10px; }
+        .card .value { font-size: 32px; font-weight: 700; }
+        .card .sub-value { font-size: 14px; opacity: 0.8; margin-top: 5px; }
+        .input-section { background: var(--light-bg); padding: 25px; border-radius: 15px; margin-bottom: 30px; }
+        .input-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 15px; }
+        .input-group { display: flex; flex-direction: column; }
+        .input-group label { font-weight: 600; color: var(--text-dark); margin-bottom: 8px; font-size: 13px; }
+        .input-group input, .input-group select, .input-group textarea { padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: all 0.3s; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .input-group textarea { resize: vertical; min-height: 60px; }
+        .input-group input:focus, .input-group select:focus, .input-group textarea:focus { outline: none; border-color: var(--primary-start); box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
+        .checkbox-group { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+        .checkbox-group input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+        .checkbox-group label { margin: 0; cursor: pointer; font-weight: 500; font-size: 13px; }
+        .btn { background: linear-gradient(135deg, var(--primary-start) 0%, var(--primary-end) 100%); color: white; padding: 12px 30px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform 0.2s; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4); }
+        .btn-group { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        .save-indicator { display: inline-block; padding: 8px 15px; background: var(--success-start); color: white; border-radius: 5px; font-size: 13px; margin-left: 10px; opacity: 0; transition: opacity 0.3s; }
+        .save-indicator.show { opacity: 1; }
+        .report-section, .error-section { background: var(--light-bg); padding: 25px; border-radius: 15px; margin-bottom: 30px; }
+        .report-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .report-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        .report-card h4 { color: var(--primary-start); margin-bottom: 15px; font-size: 16px; border-bottom: 2px solid var(--primary-start); padding-bottom: 10px; }
+        .stat-item { padding: 10px; background: var(--light-bg); border-radius: 8px; }
+        .stat-item label { font-size: 12px; color: var(--text-light); display: block; margin-bottom: 5px; }
+        .stat-item .stat-value { font-size: 18px; font-weight: 700; color: var(--text-dark); }
+        .salary-breakdown { background: var(--light-bg); padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid var(--success-start); }
+        .salary-breakdown h5 { color: var(--success-start); margin-bottom: 10px; font-size: 14px; }
+        .salary-line { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; }
+        .salary-line.total { border-top: 2px solid var(--success-start); margin-top: 10px; padding-top: 10px; font-weight: 700; font-size: 16px; color: var(--success-start); }
+        .salary-line.penalty { color: var(--danger-start); }
+        .salary-line.bonus { color: var(--success-start); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; box-shadow: 0 2px 15px rgba(0,0,0,0.08); border-radius: 10px; overflow: hidden; }
+        thead { background: linear-gradient(135deg, var(--primary-start) 0%, var(--primary-end) 100%); color: white; }
+        th { padding: 12px 8px; text-align: left; font-weight: 600; font-size: 12px; }
+        td { padding: 10px 8px; border-bottom: 1px solid #f0f0f0; font-size: 12px; text-align: center; }
+        td:first-child, td:nth-child(2) { text-align: left; }
+        tbody tr:hover { background: var(--light-bg); }
+        .tab-container { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0; }
+        .tab { padding: 12px 24px; cursor: pointer; border: none; background: none; font-size: 15px; font-weight: 600; color: var(--text-light); transition: all 0.3s; border-bottom: 3px solid transparent; }
+        .tab.active { color: var(--primary-start); border-bottom-color: var(--primary-start); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .error-section details { border: 1px solid #ddd; border-radius: 8px; margin-bottom: 15px; }
+        .error-section summary { font-weight: 600; cursor: pointer; padding: 15px; color: var(--text-dark); }
+        .error-section .error-options { padding: 0 15px 15px; display: flex; flex-direction: column; gap: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Daily Performance Monitor</h1>
+            <p>Supervisor Dashboard - Sruthi (V2 - Monthly Bonuses)</p>
+        </div>
+
+        <div class="content">
+            <div class="tab-container">
+                <button class="tab active" onclick="switchTab(event, 'entry')">📝 Entry</button>
+                <button class="tab" onclick="switchTab(event, 'records')">📋 Records</button>
+                <button class="tab" onclick="switchTab(event, 'reports')">📈 Reports</button>
+            </div>
+
+            <!-- Entry Tab -->
+            <div class="tab-content active" id="entryTab">
+                <div class="summary-cards">
+                    <!-- Dashboard Cards UPDATED -->
+                    <div class="card"><h3 >Entries (Current Month)</h3><div class="value" id="totalDays">0</div></div>
+                    <div class="card"><h3 >Total Collection</h3><div class="value" id="totalCollection">₹0</div></div>
+                    <div class="card"><h3 >Total Sales (Month)</h3><div class="value" id="totalSales">₹0</div></div>
+                    <div class="card salary-card"><h3 >Total Commissions</h3><div class="value" id="totalCommissions">₹0</div></div>
+                    <!-- New Invoice Card ADDED -->
+                    <div class="card invoice-card">
+                        <h3>Invoices Status</h3>
+                        <div class="value" id="totalInvoicesReceived">0 Received</div>
+                        <div class="sub-value" id="totalInvoicesPending">0 Pending</div>
+                    </div>
+                </div>
+
+                <div class="input-section">
+                    <h3 style="margin-bottom: 20px; color: #333;">
+                        📝 <span id="formTitle">Add Daily Entry</span>
+                        <span class="save-indicator" id="saveIndicator">✓ Saved</span>
+                    </h3>
+                    <input type="hidden" id="editIndex" value="">
+                    
+                    <div class="input-row">
+                        <div class="input-group"><label>Salesman Name *</label><input type="text" id="entrySalesman" placeholder="Enter salesman name" required></div>
+                        <div class="input-group"><label>Customer Name *</label><input type="text" id="entryCustomer" placeholder="Enter customer name" required></div>
+                        <div class="input-group"><label>Date *</label><input type="date" id="entryDate"></div>
+                        <div class="input-group"><label>Collection (₹)</label><input type="number" id="entryCollection" placeholder="0" min="0"></div>
+                        <div class="input-group"><label>Sales (₹)</label><input type="number" id="entrySales" placeholder="0" min="0"></div>
+                    </div>
+                    
+                    <div class="error-section">
+                         <details open>
+                            <summary>Error Section (Check if mistakes were made)</summary>
+                            <div class="error-options">
+                                <div class="checkbox-group"><input type="checkbox" id="mistakeBatch"><label for="mistakeBatch">Batch Information Mistake</label></div>
+                                <div class="checkbox-group"><input type="checkbox" id="mistakeQuantity"><label for="mistakeQuantity">Product Quantity Entry Mistake</label></div>
+                                <div class="checkbox-group"><input type="checkbox" id="mistakePrice"><label for="mistakePrice">Product Price Entry Mistake</label></div>
+                            </div>
+                        </details>
+                    </div>
+
+                    <!-- Input Row UPDATED -->
+                    <div class="input-row">
+                        <div class="input-group"><label>Packing Time (&lt; 20 min)</label><div class="checkbox-group"><input type="checkbox" id="entryPacking" checked></div></div>
+                        <!-- New Invoice Number Field ADDED -->
+                        <div class="input-group"><label>Invoice Number</label><input type="text" id="entryInvoiceNumber" placeholder="Enter invoice #"></div>
+                        <div class="input-group"><label>Signed Invoice Received</label><select id="entryInvoice"><option value="yes">Yes</option><option value="no">No</option></select></div>
+                        <div class="input-group"><label>Delivery Confirmation</label><select id="entryDelivery"><option value="yes">Yes</option><option value="no">No</option></select></div>
+                        <div class="input-group" style="grid-column: span 2;"><label>Remarks</label><textarea id="entryRemarks" placeholder="Enter any additional notes..."></textarea></div>
+                    </div>
+                    
+                    <div class="btn-group">
+                        <button class="btn" id="submitBtn" onclick="saveEntry()">💾 Save Entry</button>
+                        <button class="btn" onclick="cancelEdit()" id="cancelBtn" style="background: #6c757d; display: none;">Cancel</button>
+                        <button class="btn" onclick="clearAllEntries()" style="background: var(--danger-start);">🗑️ Clear All</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Records Tab -->
+            <div class="tab-content" id="recordsTab">
+                <h3 style="margin-bottom: 15px; color: #333;">📅 Daily Performance Records</h3>
+                <div style="overflow-x: auto;">
+                    <table id="recordsTable">
+                        <thead>
+                            <!-- Table Head UPDATED -->
+                            <tr>
+                                <th>Salesman</th><th>Customer</th><th>Date</th><th>Collection</th><th>Sales</th><th>Daily Commission</th><th>Invoice #</th><th>Invoice Status</th><th>Batch Mistake</th><th>Quantity Mistake</th><th>Price Mistake</th><th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recordsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Reports Tab -->
+            <div class="tab-content" id="reportsTab">
+                <div class="report-section">
+                    <h3 style="margin-bottom: 20px; color: #333;">📈 Generate Monthly Report</h3>
+                    <div class="report-filters">
+                        <div class="input-group"><label>Select Month</label><input type="month" id="reportMonth"></div>
+                        <div class="input-group"><label>Select Salesman</label><select id="reportSalesman"><option value="">All Salesmen</option></select></div>
+                        <div class="input-group" style="display: flex; align-items: flex-end;"><button class="btn" onclick="generateReport()" style="width: 100%;">Generate Report</button></div>
+                    </div>
+                    <div id="reportResults"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // IMPORTANT: You must replace this placeholder with your actual Web App URL.
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzhN-SW7LPLZZZf3DQMqscjsTiJZMKVHbo958QtIDlHoXVogoQDp61Bsm-E-hZSR6U/exec"; 
+        
+        const BASE_SALARY = 8000;
+        const SALES_COMMISSION_RATE = 0.02;
+        const COLLECTION_COMMISSION_RATE = 0.01;
+
+        let records = [];
+
+        // Set default dates
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('entryDate').valueAsDate = new Date();
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            document.getElementById('reportMonth').value = `${year}-${month}`;
+            loadRecords();
+        });
+        
+        // --- DATA HANDLING ---
+        function loadRecords() {
+            const tbody = document.getElementById('recordsBody');
+            tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;">Loading...</td></tr>`; // Colspan updated to 12
+            fetch(SCRIPT_URL)
+                .then(res => res.json())
+                .then(data => {
+                    records = data.map(parseRecord).sort((a, b) => b.dateObj - a.dateObj);
+                    updateTable();
+                    updateSummary();
+                    updateSalesmanDropdown();
+                })
+                .catch(err => {
+                    console.error("Failed to load records:", err);
+                    tbody.innerHTML = `<tr><td colspan="12" style="color:red; text-align:center;">Failed to load records.</td></tr>`; // Colspan updated to 12
+                });
+        }
+
+        function saveEntry() {
+            const editId = document.getElementById('editIndex').value;
+            const action = editId ? 'update' : 'save';
+
+            const entryData = {
+                salesman: document.getElementById('entrySalesman').value.trim(),
+                customer: document.getElementById('entryCustomer').value.trim(),
+                date: document.getElementById('entryDate').value,
+                collection: parseFloat(document.getElementById('entryCollection').value) || 0,
+                sales: parseFloat(document.getElementById('entrySales').value) || 0,
+                mistakeBatch: document.getElementById('mistakeBatch').checked,
+                mistakeQuantity: document.getElementById('mistakeQuantity').checked,
+                mistakePrice: document.getElementById('mistakePrice').checked,
+                packing: document.getElementById('entryPacking').checked,
+                invoiceNumber: document.getElementById('entryInvoiceNumber').value.trim(), // <-- Field ADDED
+                invoice: document.getElementById('entryInvoice').value,
+                delivery: document.getElementById('entryDelivery').value,
+                remarks: document.getElementById('entryRemarks').value.trim()
+            };
+
+            if (!entryData.salesman || !entryData.customer || !entryData.date) {
+                alert('Please fill in Salesman Name, Customer Name, and Date.');
+                return;
+            }
+
+            const payload = { action, id: editId, data: entryData };
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.innerHTML = '💾 Saving...';
+
+            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) })
+                .then(res => res.json())
+                .then(response => {
+                    if (response.status === 'success') {
+                        showSaveIndicator();
+                        cancelEdit();
+                        loadRecords();
+                    } else {
+                        alert('Error saving entry: ' + response.message);
+                    }
+                })
+                .catch(error => console.error('Error:', error))
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = '💾 Save Entry';
+                });
+        }
+        
+        function deleteEntry(id) {
+            if (!confirm('Are you sure you want to delete this entry?')) return;
+            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'delete', id: id }) })
+                .then(res => res.json())
+                .then(response => {
+                    if (response.status === 'success') {
+                        showSaveIndicator();
+                        loadRecords();
+                    } else {
+                        alert('Error deleting entry: ' + response.message);
+                    }
+                })
+                .catch(error => console.error('Error deleting:', error));
+        }
+
+        function clearAllEntries() {
+            if (!confirm('DANGER: This will permanently delete all records from your Google Sheet. This cannot be undone. Are you sure?')) {
+                return;
+            }
+            const tbody = document.getElementById('recordsBody');
+            tbody.innerHTML = `<tr><td colspan="12" style="text-align:center; color: #dc3545;">Deleting all records...</td></tr>`; // Colspan updated to 12
+            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'clearAll' }) })
+                .then(res => res.json())
+                .then(response => {
+                    if (response.status === 'success') {
+                        alert('All records have been deleted successfully.');
+                        loadRecords(); // Reload to show empty state
+                    } else {
+                        alert('Error deleting records: ' + response.message);
+                        loadRecords();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error clearing all entries:', error);
+                    alert('A critical error occurred. Could not delete records.');
+                    loadRecords();
+                });
+        }
+
+        // --- UI & FORM HANDLING ---
+        function editEntry(id) {
+            const entry = records.find(r => r.id.toString() === id.toString());
+            if (!entry) return;
+
+            document.getElementById('entrySalesman').value = entry.salesman;
+            document.getElementById('entryCustomer').value = entry.customer;
+            document.getElementById('entryDate').value = entry.date;
+            document.getElementById('entryCollection').value = entry.collection;
+            document.getElementById('entrySales').value = entry.sales;
+            document.getElementById('mistakeBatch').checked = entry.mistakeBatch;
+            document.getElementById('mistakeQuantity').checked = entry.mistakeQuantity;
+            document.getElementById('mistakePrice').checked = entry.mistakePrice;
+            document.getElementById('entryPacking').checked = entry.packing;
+            document.getElementById('entryInvoiceNumber').value = entry.invoiceNumber; // <-- Field ADDED
+            document.getElementById('entryInvoice').value = entry.invoice;
+            document.getElementById('entryDelivery').value = entry.delivery;
+            document.getElementById('entryRemarks').value = entry.remarks;
+            document.getElementById('editIndex').value = entry.id;
+
+            document.getElementById('formTitle').textContent = 'Edit Entry';
+            document.getElementById('submitBtn').innerHTML = '💾 Update Entry';
+            document.getElementById('cancelBtn').style.display = 'inline-block';
+            switchTab(null, 'entry');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function cancelEdit() {
+            document.getElementById('editIndex').value = '';
+            document.getElementById('formTitle').textContent = 'Add Daily Entry';
+            document.getElementById('submitBtn').innerHTML = '💾 Save Entry';
+            document.getElementById('cancelBtn').style.display = 'none';
+            resetForm();
+        }
+
+        function resetForm() {
+            // Manually reset all the form fields to their default state
+            document.getElementById('entrySalesman').value = '';
+            document.getElementById('entryCustomer').value = '';
+            document.getElementById('entryDate').valueAsDate = new Date();
+            document.getElementById('entryCollection').value = '';
+            document.getElementById('entrySales').value = '';
+            document.getElementById('mistakeBatch').checked = false;
+            document.getElementById('mistakeQuantity').checked = false;
+            document.getElementById('mistakePrice').checked = false;
+            document.getElementById('entryPacking').checked = true;
+            document.getElementById('entryInvoiceNumber').value = ''; // <-- Field ADDED
+            document.getElementById('entryInvoice').value = 'yes';
+            document.getElementById('entryDelivery').value = 'yes';
+            document.getElementById('entryRemarks').value = '';
+        }
+        
+        function updateTable() {
+            const tbody = document.getElementById('recordsBody');
+            if (records.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;">No records yet.</td></tr>`; // Colspan updated to 12
+                return;
+            }
+            // Table Body UPDATED
+            tbody.innerHTML = records.map(entry => `
+                <tr>
+                    <td>${escapeHtml(entry.salesman)}</td>
+                    <td>${escapeHtml(entry.customer)}</td>
+                    <td>${new Date(entry.date).toLocaleDateString()}</td>
+                    <td>₹${formatNumber(entry.collection)}</td>
+                    <td>₹${formatNumber(entry.sales)}</td>
+                    <td>₹${formatNumber(entry.dailyCommission)}</td>
+                    <td>${escapeHtml(entry.invoiceNumber)}</td> <!-- Column ADDED -->
+                    ${getInvoiceStatusBadge(entry.invoice)} <!-- New Invoice Status Column -->
+                    <td>${entry.mistakeBatch ? '✔️' : '❌'}</td>
+                    <td>${entry.mistakeQuantity ? '✔️' : '❌'}</td>
+                    <td>${entry.mistakePrice ? '✔️' : '❌'}</td>
+                    <td>
+                        <button class="edit-btn" onclick="editEntry('${entry.id}')">✏️</button>
+                        <button class="delete-btn" onclick="deleteEntry('${entry.id}')">🗑️</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // --- Dashboard Summary Function UPDATED ---
+        function updateSummary() {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth(); // 0-11
+            
+            // Filter records for the current month
+            const currentMonthRecords = records.filter(r => {
+                const d = r.dateObj;
+                if (!d) return false;
+                return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+            });
+
+            // Calculate stats based on filtered records
+            document.getElementById('totalDays').textContent = currentMonthRecords.length;
+            const totalCollection = currentMonthRecords.reduce((sum, r) => sum + r.collection, 0);
+            const totalSales = currentMonthRecords.reduce((sum, r) => sum + r.sales, 0);
+            const totalCommissions = currentMonthRecords.reduce((sum, r) => sum + r.dailyCommission, 0);
+
+            document.getElementById('totalCollection').textContent = '₹' + formatNumber(totalCollection);
+            document.getElementById('totalSales').textContent = '₹' + formatNumber(totalSales);
+            document.getElementById('totalCommissions').textContent = '₹' + formatNumber(totalCommissions);
+
+            // Calculate new invoice stats for the month
+            const receivedInvoices = currentMonthRecords.filter(r => r.invoice === 'yes').length;
+            const pendingInvoices = currentMonthRecords.filter(r => r.invoice === 'no').length;
+
+            document.getElementById('totalInvoicesReceived').textContent = `${receivedInvoices} Received`;
+            document.getElementById('totalInvoicesPending').textContent = `${pendingInvoices} Pending`;
+        }
+
+        // --- REPORTING LOGIC ---
+        function generateReport() {
+            const monthYear = document.getElementById('reportMonth').value;
+            const selectedSalesman = document.getElementById('reportSalesman').value;
+            const resultsDiv = document.getElementById('reportResults');
+
+            if (!monthYear || !selectedSalesman) {
+                resultsDiv.innerHTML = `<p style="text-align:center; color: #dc3545;">Please select a month and a salesman.</p>`;
+                return;
+            }
+
+            const [year, month] = monthYear.split('-').map(Number);
+            const filteredRecords = records.filter(r => {
+                const d = r.dateObj;
+                return r.salesman === selectedSalesman && d.getFullYear() === year && (d.getMonth() + 1) === month;
+            });
+
+            if (filteredRecords.length === 0) {
+                resultsDiv.innerHTML = `<p style="text-align:center; color: #666;">No records found for ${selectedSalesman} in ${monthYear}.</p>`;
+                return;
+            }
+
+            const totalCollection = filteredRecords.reduce((sum, r) => sum + r.collection, 0);
+            const totalSales = filteredRecords.reduce((sum, r) => sum + r.sales, 0);
+            const collectionCommission = totalCollection * COLLECTION_COMMISSION_RATE;
+            const salesCommission = totalSales * SALES_COMMISSION_RATE;
+            
+            const mistakeCounts = {
+                batch: filteredRecords.filter(r => r.mistakeBatch).length,
+                quantity: filteredRecords.filter(r => r.mistakeQuantity).length,
+                price: filteredRecords.filter(r => r.mistakePrice).length,
+            };
+
+            const batchResult = calculateBonusPenalty(mistakeCounts.batch, 750, 300, 500);
+            const quantityResult = calculateBonusPenalty(mistakeCounts.quantity, 500, 250, 500);
+            const priceResult = calculateBonusPenalty(mistakeCounts.price, 500, 250, 500);
+
+            const totalBonus = batchResult.bonus + quantityResult.bonus + priceResult.bonus;
+            const totalPenalty = batchResult.penalty + quantityResult.penalty + priceResult.penalty;
+            const finalSalary = BASE_SALARY + collectionCommission + salesCommission + totalBonus - totalPenalty;
+
+            resultsDiv.innerHTML = `
+                <div class="report-card">
+                    <h4>📊 Monthly Salary Report for ${escapeHtml(selectedSalesman)}</h4>
+                    <div class="salary-breakdown">
+                        <div class="salary-line"><span>Base Salary</span><span>₹${formatNumber(BASE_SALARY)}</span></div>
+                        <div class="salary-line bonus"><span>+ Collection Commission</span><span>₹${formatNumber(collectionCommission)}</span></div>
+                        <div class="salary-line bonus"><span>+ Sales Commission</span><span>₹${formatNumber(salesCommission)}</span></div>
+                        <div class="salary-line bonus"><span>+ Total Performance Bonus</span><span>₹${formatNumber(totalBonus)}</span></div>
+                        <div class="salary-line penalty"><span>- Total Performance Penalty</span><span>₹${formatNumber(totalPenalty)}</span></div>
+                        <div class="salary-line total"><span>Final Monthly Salary</span><span>₹${formatNumber(finalSalary)}</span></div>
+                    </div>
+                </div>
+                <div class="report-card">
+                    <h4>📋 Mistake Analysis</h4>
+                    <div class="salary-breakdown">
+                        ${renderMistakeLine('Batch Information', mistakeCounts.batch, batchResult)}
+                        ${renderMistakeLine('Product Quantity', mistakeCounts.quantity, quantityResult)}
+                        ${renderMistakeLine('Product Price', mistakeCounts.price, priceResult)}
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- HELPER FUNCTIONS ---
+        function parseRecord(item) {
+            const date = item.Date || item.date;
+            const collection = parseFloat(item.Collection || item.collection || 0);
+            const sales = parseFloat(item.Sales || item.sales || 0);
+            return {
+                id: item.ID || item.id,
+                salesman: item.Salesman || item.salesman,
+                customer: item.Customer || item.customer,
+                date: date ? new Date(date).toISOString().split('T')[0] : '',
+                dateObj: date ? new Date(date) : null,
+                collection: collection,
+                sales: sales,
+                dailyCommission: (collection * COLLECTION_COMMISSION_RATE) + (sales * SALES_COMMISSION_RATE),
+                mistakeBatch: String(item.MistakeBatch || item.mistakeBatch) === 'true',
+                mistakeQuantity: String(item.MistakeQuantity || item.mistakeQuantity) === 'true',
+                mistakePrice: String(item.MistakePrice || item.mistakePrice) === 'true',
+                packing: String(item.Packing || item.packing) === 'true',
+                invoiceNumber: item.InvoiceNumber || item.invoiceNumber || '', // <-- Field ADDED
+                invoice: item.Invoice || item.invoice || 'yes',
+                delivery: item.Delivery || item.delivery || 'yes',
+                remarks: item.Remarks || item.remarks || '',
+            };
+        }
+        
+        // NEW Helper function to create the invoice status badge
+        function getInvoiceStatusBadge(status) {
+            if (status === 'yes') {
+                return `<td style="color: var(--success-start); font-weight: 600;">✔️ Received</td>`;
+            } else {
+                return `<td style="color: var(--danger-start); font-weight: 600;">❌ Pending</td>`;
+            }
+        }
+
+        function calculateBonusPenalty(count, zeroBonus, fewBonus, manyPenalty) {
+            if (count === 0) return { bonus: zeroBonus, penalty: 0 };
+            if (count >= 1 && count <= 4) return { bonus: fewBonus, penalty: 0 };
+            return { bonus: 0, penalty: manyPenalty };
+        }
+
+        function renderMistakeLine(label, count, result) {
+            let valueHtml = '';
+            if (result.bonus > 0) valueHtml = `<span class="bonus">+ ₹${formatNumber(result.bonus)}</span>`;
+            if (result.penalty > 0) valueHtml = `<span class="penalty">- ₹${formatNumber(result.penalty)}</span>`;
+            return `<div class="salary-line"><span>${label} Mistakes: ${count}</span><span>${valueHtml}</span></div>`;
+        }
+        
+        function updateSalesmanDropdown() {
+            const select = document.getElementById('reportSalesman');
+            const salesmen = [...new Set(records.map(r => r.salesman))];
+            select.innerHTML = '<option value="">Select a Salesman</option>';
+            salesmen.forEach(s => select.innerHTML += `<option value="${escapeHtml(s)}">${escapeHtml(s)}</goption>`);
+        }
+
+        function switchTab(event, tabName) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            if(event) event.currentTarget.classList.add('active');
+            else document.querySelector(`.tab[onclick*="'${tabName}'"]`).classList.add('active');
+        }
+
+        function formatNumber(num) { return new Intl.NumberFormat('en-IN').format(Math.round(num || 0)); }
+        function escapeHtml(text) { return text ? text.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;") : ""; }
+        function showSaveIndicator() { const el = document.getElementById('saveIndicator'); el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2000); }
+    </script>
+</body>
+</html>
